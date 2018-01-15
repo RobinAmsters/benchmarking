@@ -8,28 +8,38 @@ Created on Fri Sep  8 11:05:28 2017
 
 General purpose file for obtaining data from rosbag files
 
-TODO:
-    - Implement more general functions
-    - Add function to get data from a topic
-    - Testing
 """
 import rosbag
-import tf
 
 import numpy as np
 
 from FileSelectGui import getFilePath
 
 #==============================================================================
-def get_topic_data():
-    pass
+def get_topic_data(bagFile, topic):
+    """
+        Return all messages from a specific topic
+    """
+    
+    all_msg = []
+    
+    # Initialize rosbag object
+    bag = rosbag.Bag(bagFile)
+    
+    for topic, msg, t in bag.read_messages(topics=[topic]):
+        
+        all_msg = np.append(all_msg, msg)
 
+    return all_msg
 #==============================================================================
 
-def get_joint_data(bag, all_robot_pose, robot_time, joint_name, angle=0):
+def get_joint_data(bagFile, joint_name):
     """
         Function that filters bag files to obtain data from a joint that is 
         published to the /tf topic.
+        
+        Only x-, y- and z-coordinates are returned
+        
     """
     x = np.array([])
     y = np.array([])
