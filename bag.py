@@ -75,80 +75,52 @@ def get_joint_data(bagFile, joint_name):
     return pose, all_t
 
 #==============================================================================
-
-def get_robot_pose(bagFile):
-    """
-        Function that gets robot pose (position, orientation) from bag files.
-        Robot frame should be named 'base_footprint'.
-        Initial position is remapped to the origin
-    """
-    
-    
-    x = np.array([])
-    y = np.array([])
-    z = np.array([])
-    th = np.array([])
-    
-    robot_t = np.array([])
-    first = 1
-    
-    bag = rosbag.Bag(bagFile)
-    
-    # Add message values to collections
-    for topic, msg, t in bag.read_messages(topics=['/tf']):
-        
-        joint = msg.transforms[0].child_frame_id.split('_')
-        
-        if joint[0] == 'base' and joint[1] == 'footprint': 
-            
-            # Get time difference from first timestamp
-            if first:
-                t_start = msg.transforms[0].header.stamp
-                translation = msg.transforms[0].transform.translation
-                rotation = msg.transforms[0].transform.rotation
-                euler = tf.transformations.euler_from_quaternion([rotation.x, rotation.y, rotation.z, rotation.w])
-                
-                x_0 = translation.x
-                y_0 = translation.y
-                z_0 = translation.z
-                th_0 = 0
-                
-                first = 0
-            
-            else:
-                
-                translation = msg.transforms[0].transform.translation
-                rotation = msg.transforms[0].transform.rotation
-                euler = tf.transformations.euler_from_quaternion([rotation.x, rotation.y, rotation.z, rotation.w])
-            
-                t = msg.transforms[0].header.stamp - t_start
-                t = t.to_sec()
-                robot_t = np.append(robot_t, t)
-                
-                x = np.append(x, translation.x - x_0)
-                y = np.append(y, translation.y - y_0)
-                z = np.append(z, translation.z - z_0)
-                th = np.append(th, euler[2] - th_0)
-    
-    robot_pose = [x, y, z, th]
-    
-    return robot_pose, robot_t
-
-#==============================================================================
 #           DEMO
 #==============================================================================
 if __name__ == "__main__":
     
     # Open bagfile and obtain robot position
     bagFile = getFilePath('Select bag file').name
-    robot_pose, robot_t = get_robot_pose(bagFile)
+    pose, all_t = get_joint_data(bagFile, 'base_footprint')
+    
+    # Get laptop charge data from rostopic
+    charge_msgs = get_topic_data(bagFile, '/laptop_charge')
+    t_charge = []
+    voltage_charge = []
+    first = True
+    for charge_msg in charge_msgs:
+        # Get timestamp in seconds
+        t = charge_msg.header.stamp
+        t_sec = t.to_sec()
+        
+        # Take first timestep as 0 seconds
+        if first:
+            t_0 = t_sec
+            first = False
+        
+        # Add data to collections
+        t_charge = np.append(t_charge, t_sec-t_0)
+        voltage_charge = np.append(voltage_charge, charge_msg.voltage)
+        
     
     # Plotting
     import matplotlib.pyplot as plt
     
-    plt.scatter(robot_pose[0], robot_pose[1], color='black', s=5, label='Robot position')
-    plt.xlabel('X-coordinate [m]')
-    plt.ylabel('Y-coordinate [m]')
+    fig = plt.figure(1)
+    
+    # Plot robot pose
+    ax = fig.add_subplot(211)
+    ax.scatter(pose[0], pose[1], color='black', s=5, label='robot pose')
+    ax.set_xlabel('X-coordinate [m]')
+    ax.set_ylabel('Y-coordinate [m]')
+    plt.legend()
+    plt.grid()
+    
+    # Plot laptop charge
+    ax = fig.add_subplot(212)
+    ax.plot(t_charge, voltage_charge, color='black', label='laptop charge')
+    ax.set_xlabel('Time [s]')
+    ax.set_ylabel('Voltage [V]')
     plt.legend()
     plt.grid()
     
