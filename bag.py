@@ -33,23 +33,26 @@ def get_topic_data(bagFile, topic):
     return all_msg
 #==============================================================================
 
-def get_joint_data(bagFile, joint_name):
+def get_joint_data(bagFile, joint_name, convert_to_sec=True):
     """
         Function that filters bag files to obtain data from a joint that is 
         published to the /tf topic.
         
         Only x-, y- and z-coordinates are returned
         
+        if convert_to_sec is set to True (default), then the first timestamp 
+        will be taken as zero seconds, and the following timesteps that are 
+        retured will be relative to this timestamp.
+        
     """
+    # INITIALIZATION
     x = np.array([])
     y = np.array([])
     z = np.array([])
-    
     all_t = np.array([])
-    
-    # Initialize rosbag object
-    bag = rosbag.Bag(bagFile)
-    
+    bag = rosbag.Bag(bagFile) # Initialize rosbag object
+    first = True # True on first iteration to take first timestamp
+
     # Add message values to collections
     for topic, msg, t in bag.read_messages(topics=['/tf']):
         
@@ -61,7 +64,13 @@ def get_joint_data(bagFile, joint_name):
             # Get timestamp in seconds
             t = msg.transforms[0].header.stamp
             t_sec = t.to_sec()
-            all_t = np.append(all_t, t_sec)
+            
+            if (first and convert_to_sec):
+                t_0 = t_sec
+                first = False
+
+            all_t = np.append(all_t, t_sec-t_0)        
+
             
             # Get x, y and z coordinates
             pose = [translation.x , translation.y, translation.z]
