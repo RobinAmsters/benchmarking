@@ -1,10 +1,2 @@
-
-\.spyproject/codestyle\.ini
-
-\.spyproject/encoding\.ini
-
-\.spyproject/vcs\.ini
-
-\.spyproject/workspace\.ini
-
-FileSelectGui\.pyc
+*.ini
+*.pyc
