@@ -47,19 +47,23 @@ def get_joint_data(bagFile, joint_name):
     
     all_t = np.array([])
     
+    # Initialize rosbag object
+    bag = rosbag.Bag(bagFile)
+    
     # Add message values to collections
     for topic, msg, t in bag.read_messages(topics=['/tf']):
         
-        joint = msg.transforms[0].child_frame_id.split('_')
+        joint = msg.transforms[0].child_frame_id
         translation = msg.transforms[0].transform.translation
         
-        if joint[0] == joint_name: 
-        
-        
+        if joint == joint_name: 
+
+            # Get timestamp in seconds
             t = msg.transforms[0].header.stamp
             t_sec = t.to_sec()
-            all_t = np.append(t, t_sec)
+            all_t = np.append(all_t, t_sec)
             
+            # Get x, y and z coordinates
             pose = [translation.x , translation.y, translation.z]
 
             x = np.append(x, pose[0])
