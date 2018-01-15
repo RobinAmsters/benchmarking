@@ -6,12 +6,12 @@ Created on Fri Jun 16 11:11:32 2017
 @author: Robin Amsters
 @email: robin.amsters@kuleuven.be
 
-File to filter bag files into topics neccesary for testing the VLP algorithm
+Filter bag files into a new bag file that only contains the topics specified.
+For now, the desired topics have to specified in this file
 
-Topics that are present in the new bag file:
-	- /light_intensity
-	- /mobile_base/sensors/core
-	- /mobile_base/sensors/imu_data
+TODO: 
+    - allow user to specify topics more easily
+
 """
 
 import os
@@ -41,14 +41,12 @@ def getAllBagFilesInDirectory(directory):
     
     return bagFiles
 
-def filterBagFile(bagPath):
+def filterBagFile(bagPath, topics):
     """
         Function that filters all topics in a single bag file except the ones
         relevant for retesing the VLP algorithm
         
     """
-    
-    topics = ['/light_intensity', '/mobile_base/sensors/core', '/mobile_base/sensors/imu_data', '/scan'] # Topics to include in filtered bag file
     
     new_bag = bagPath[0:len(bagPath)-4] + '_filtered.bag' # Construct name of new .bag file
     
@@ -57,21 +55,19 @@ def filterBagFile(bagPath):
     for i in range(1,len(topics)):
         cmd = cmd + ' or topic =="' + topics[i] + '"'
     
-#    cmd = cmd + ' or topic == "/tf" and m.transforms[0].header.frame_id == "odom" and m.transforms[0].child_frame_id == "base_footprint"'
-#    cmd = cmd + '\''
-#    cmd = cmd + ' or topic == "/tf_static"'
     cmd = cmd + '\''
-#    print(cmd)
     os.system(cmd)
 
 if __name__ == "__main__":
+        
+    args = sys.argv
+    topics = ['/light_intensity', '/mobile_base/sensors/core', '/mobile_base/sensors/imu_data', '/scan']
     
     # If no argument is passed, filter a single file
-    args = sys.argv
-    
     if len(sys.argv) < 2:
         bagFile = getFilePath('Select bag file').name
-        filterBagFile(bagFile)  
+        filterBagFile(bagFile, topics)  
+    
     # If a valid argument is passed, filter the entire directory and all subdirectories    
     else:
         filter_arg = sys.argv[1]
@@ -83,7 +79,7 @@ if __name__ == "__main__":
             
             for bagFile in bagFiles:                                                                                        # Filter all bag files
                 print("Processing file: " + bagFile)
-                filterBagFile(bagFile)
+                filterBagFile(bagFile, topics)
                 
         else:
             print(str(filter_arg) +  ' is not a known argument, acceptable arguments are: ' + str(acceptable_agrs))
