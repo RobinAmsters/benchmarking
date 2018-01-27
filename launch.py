@@ -9,6 +9,9 @@ Phase 1: Try to use getFile functions successfully.
 import numpy as np
 import scipy.io
 
-testfile = getFilePath(example)
+from FileSelectGui import getFilePath
+from bag import get_topic_data
+
+testfile = getFilePath("example")
 testdata = get_topic_data(testfile,"/NIS")
 
