@@ -18,19 +18,19 @@ from fnmatch import fnmatch
 from Tkinter import Tk
 from tkFileDialog import askopenfile , askdirectory
 
-def getFilePath(msg):
+def get_file_path(msg):
 	# Selecting file trough GUI
 	Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
 	filePath = askopenfile(title = msg) # show an "Open" dialog box and return the path to the selected file
 	return filePath
 
-def getDirectoryPath(msg):
+def get_directory_path(msg):
 	# Selecting directory trough GUI
 	Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
 	filePath = askdirectory(title = msg) # show an "Open" dialog box and return the path
 	return filePath
 
-def getAllFilesInDirectory(directory, pattern):
+def get_all_files_directory(directory, pattern):
     """
         Function that returns all the path to all files in a directory
         and its subdirectories that end in a certain pattern.
@@ -47,7 +47,7 @@ def getAllFilesInDirectory(directory, pattern):
     
     return allFiles
 
-def getFolderNames(directory):
+def get_folder_names(directory):
     
     folders = os.walk(directory).next()[1]
     
@@ -55,5 +55,6 @@ def getFolderNames(directory):
 
 
 if __name__=='__main__':
-    directory = getDirectoryPath('select directory')
-    print(getAllFilesInDirectory(directory, '*.bag'))
+    # list all rosbag files
+    directory = get_directory_path('select directory')
+    print(get_all_files_directory(directory, '*.bag'))

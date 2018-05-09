@@ -10,10 +10,8 @@ General purpose file for obtaining data from rosbag files
 
 """
 import rosbag
-
 import numpy as np
-
-from FileSelectGui import getFilePath
+from file_select_gui import get_file_path
 
 #==============================================================================
 def get_topic_data(bagFile, topic):
@@ -89,7 +87,7 @@ def get_joint_data(bagFile, joint_name, convert_to_sec=True):
 if __name__ == "__main__":
     
     # Open bagfile and obtain robot position
-    bagFile = getFilePath('Select bag file').name
+    bagFile = get_file_path('Select bag file').name
     pose, all_t = get_joint_data(bagFile, 'base_footprint')
     
     # Get laptop charge data from rostopic
