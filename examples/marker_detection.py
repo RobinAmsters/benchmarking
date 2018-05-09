@@ -8,9 +8,12 @@ Created on Wed May  9 16:19:59 2018
 
 Example aruco marker detection postprocessing file
 
-TODO: test outside spyder
-
 """
+# Include parent directory in pythonpath
+import os,sys,inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0,parentdir) 
 
 import cv2
 import matplotlib.pyplot as plt
