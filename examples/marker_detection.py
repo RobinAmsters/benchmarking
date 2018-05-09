@@ -30,7 +30,7 @@ plot_interval = 1.0 #
 # Define marker parameters
 dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
 board = cv2.aruco.CharucoBoard_create(3,3,.07,.035,dictionary)
-marker_size = 0.10
+marker_size = 0.10 # In meter
 
 #       Select files with GUI
 cam_params_file = get_file_path("Select camera parameters file").name
