@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
 Created on Mon Jan 15 09:55:40 2018
@@ -83,7 +83,7 @@ def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize,
 
         # lists of ids and the corners belonging to each id
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, dictionary, parameters=parameters)   
-#        corners, ids, rejectedImgPoints, recoveredIdxs = aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedCorners=rejectedImgPoints, cameraMatrix=cMat, distCoeffs=dist)
+        corners, ids, rejectedImgPoints, recoveredIdxs = aruco.refineDetectedMarkers(gray, board, corners, ids, rejectedCorners=rejectedImgPoints, cameraMatrix=cMat, distCoeffs=dist)
         
         if ids is not None:  
             
