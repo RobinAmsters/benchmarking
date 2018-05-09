@@ -45,11 +45,25 @@ def count_frames_manual(video_file):
 	# return the total number of frames in the video file
     return total
 
-def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize, board, show_video=False, save_output=False, output_file_name='output.avi'):
 def get_webcam_reference(video_file, cam_params_file, dictionary, marker_size, board, show_video=False, save_output=False, output_file_name='output.avi'):
     """
         Function that returns the position and orientation of a marker from its
-        initial position. The input is a video file containing marker
+        initial position. 
+        
+        INPUTS:
+            - video_file: path to a video file to be processed
+            - cam_params_file: pickle file containing parameters from camera calibration
+            - dictionary: aruco predifined dictionary used to generate markers
+            - board: aruco marker board
+            - marker_size: size of marker to detect in meters
+            - show_video (default=False): play video with detection results. Video playback can be stopped by pressing q.
+            - save_output (default=False): save the detection output to a video file
+            - output_file_name (default='output.avi'): name of output video file
+            
+        OUTPUTS:
+            - all_tvec: marker coordinates of each frame [x, y, z]
+            - all_rvec: marker orientations of each frame [x, y, z]
+        
     """
     
     # Open video file and get number of frames
