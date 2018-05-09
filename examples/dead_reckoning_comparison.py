@@ -5,11 +5,7 @@ Created on Tue Apr  4 14:10:11 2017
 
 @author: Robin Amsters
 
-File to postprocess data from experiments. Position estimations of the robot
-(from .bag files) are compared to position estimations from the krypton K600
-coordinate measuring machine (.mat files)
-
-TODO:
+File to postprocess data from experiments. Position estimations of UVLP are compared to position estimations from dead reckoning estimates
 
 """
 
@@ -19,9 +15,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-from FileSelectGui import getFilePath
-from mpl_toolkits.mplot3d import Axes3D
-from bag import get_joint_data
+from file_select_gui import get_file_path
+from bag_data import get_joint_data
 
 plt.rc('text', usetex=False) # Set true for latex typesetting in plots
 
@@ -75,7 +70,7 @@ if __name__ == "__main__":
 #%%                   GET DATA FROM FILES
 
     #   Select files with GUI
-    bagFilePath = getFilePath("Select .bag file").name
+    bagFilePath = get_file_path("Select .bag file").name
     
     #   Get robot position estimate    
     pose_ref, t_ref = get_joint_data(bagFilePath, 'base_footprint')
