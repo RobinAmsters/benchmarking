@@ -45,7 +45,7 @@ def count_frames_manual(videoFilePath):
 	# return the total number of frames in the video file
     return total
 
-def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize, show_video=False):
+def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize, board, show_video=False, save_output=False, output_file_name='output.avi'):
     """
         Function that returns the position and orientation of a marker from its
         initial position. The input is a video file containing marker
@@ -64,12 +64,14 @@ def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize,
     # Initialize collections
     all_tvec = np.array([[],[],[]])
     all_rvec = np.array([[],[],[]])
-    print('Postprocessing: tracking marker')
+    print('Tracking marker')
     
-    # Define the codec and create VideoWriter object
-    size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-    out = cv2.VideoWriter('output.avi',fourcc, 29.0, size, True)  # 'False' for 1-ch instead of 3-ch for color
+    if save_output:
+        # Define the codec and create VideoWriter object
+        size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+        fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+        out = cv2.VideoWriter(output_file_name,fourcc, 29.0, size, True)  # 'False' for 1-ch instead of 3-ch for color
+    
     parameters =  aruco.DetectorParameters_create() # Obtain detection parameters
 
     # Capture frame-by-frame
@@ -108,24 +110,24 @@ def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize,
             # Display the resulting frame
             if show_video:
                 cv2.imshow('frame',frameWithMarkers)
-		out.write(gray)
             
         else:  
             # Display: no IDs
             cv2.putText(gray, "No IDs", (0,64), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0),2,cv2.LINE_AA)  
             if show_video:
                 cv2.imshow('frame',gray)
-		out.write(gray)
-
+                
+        if save_output:
+            out.write(gray)
 
         # Stop when q is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     
- 
     # When everything done, release the capture
     cap.release()
-    out.release()
+    if save_output:
+        out.release()
     cv2.destroyAllWindows()
     
     return all_tvec, all_rvec
