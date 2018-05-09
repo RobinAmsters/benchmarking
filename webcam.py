@@ -19,7 +19,7 @@ import numpy as np
 #==============================================================================
 #               WEBCAM VIDEO FILE FUNCTIONS
 #==============================================================================
-def count_frames_manual(videoFilePath):
+def count_frames_manual(video_file):
     """
         Funtion that counts the total number of frames in a video file.
         This is a very unoptimized implementation
@@ -27,7 +27,7 @@ def count_frames_manual(videoFilePath):
     
 	# initialize the total number of frames read
     total = 0
-    video = cv2.VideoCapture(videoFilePath)
+    video = cv2.VideoCapture(video_file)
  
 	# loop over the frames of the video
     while True:
@@ -46,6 +46,7 @@ def count_frames_manual(videoFilePath):
     return total
 
 def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize, board, show_video=False, save_output=False, output_file_name='output.avi'):
+def get_webcam_reference(video_file, cam_params_file, dictionary, marker_size, board, show_video=False, save_output=False, output_file_name='output.avi'):
     """
         Function that returns the position and orientation of a marker from its
         initial position. The input is a video file containing marker
@@ -53,11 +54,11 @@ def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize,
     
     # Open video file and get number of frames
     print('Preprocessing: counting number of frames')
-    n_frames = count_frames_manual(videoFilePath)
-    cap = cv2.VideoCapture(videoFilePath)
+    n_frames = count_frames_manual(video_file)
+    cap = cv2.VideoCapture(video_file)
     
     # Parameters from camera calibration
-    cal = pickle.load(open(cParamsFilePath, "rb" ))
+    cal = pickle.load(open(cam_params_file, "rb" ))
     cMat = cal[0]
     dist = cal[1][0]
     
@@ -88,7 +89,7 @@ def get_webcam_reference(videoFilePath, cParamsFilePath, dictionary, markerSize,
         if ids is not None:  
             
             # Obtain rotation and translation vectors
-            rvec, tvec, _objPoints = aruco.estimatePoseSingleMarkers(corners, markerSize, cameraMatrix=cMat, distCoeffs=dist) # corners, size of markers in meters, [3x3] intrinsic camera parameters, 5 distortion coefficients 
+            rvec, tvec, _objPoints = aruco.estimatePoseSingleMarkers(corners, marker_size, cameraMatrix=cMat, distCoeffs=dist) # corners, size of markers in meters, [3x3] intrinsic camera parameters, 5 distortion coefficients 
             rvec = np.array([rvec.item(0), rvec.item(1), rvec.item(2)])
             tvec = np.array([tvec.item(0), tvec.item(1), tvec.item(2)])
     
