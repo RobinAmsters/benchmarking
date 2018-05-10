@@ -17,8 +17,9 @@ from file_select_gui import get_directory_path
 save_params = True
 
 # checkerboard Dimensions
-cbrow = 6
-cbcol = 8
+cbrow = 6 # Checkerboard rows
+cbcol = 8 # Checkerboard columns
+square_size = 40.5/1000 # Size of checkerboard square in millimeters, set to 1000 if square size is unknown
 image_folder = get_directory_path('Select folder containing calibration images')
 
 # Termination criteria
@@ -26,7 +27,7 @@ criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
 # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
 objp = np.zeros((cbrow * cbcol, 3), np.float32)
-objp[:, :2] = np.mgrid[0:cbcol, 0:cbrow].T.reshape(-1, 2)
+objp[:, :2] = np.mgrid[0:cbcol, 0:cbrow].T.reshape(-1, 2)*square_size
 
 # Arrays to store object ponts and image points from all the images.
 objpoints = [] # 3D points in real world space
