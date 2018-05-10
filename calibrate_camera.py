@@ -9,8 +9,12 @@ Additional info:
 import numpy as np
 import cv2
 import glob
+import pickle
 
 from file_select_gui import get_directory_path
+
+# Save calibration data
+save_params = True
 
 # checkerboard Dimensions
 cbrow = 6
@@ -68,3 +72,9 @@ for i in xrange(len(objpoints)):
     error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
     mean_error += error
 print( "total error: {}".format(mean_error/len(objpoints)) ) 
+
+if save_params:
+    cal = [cameraMatrix, distCoeffs]
+    f = open(('calibration_data.pckl'), 'wb')
+    pickle.dump(cal, f)
+    f.close()
