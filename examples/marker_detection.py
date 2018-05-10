@@ -37,7 +37,7 @@ cam_params_file = get_file_path("Select camera parameters file").name
 video_file = get_file_path("Select video file").name
 
 all_tvec, all_rvec = get_webcam_reference(video_file, cam_params_file, dictionary, 
-                                          marker_size, board, show_video=False, 
+                                          marker_size, board, show_video=True, 
                                           save_output=False, output_file_name='example.avi')
 
 #             PLOTTING
