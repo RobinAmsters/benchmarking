@@ -4,8 +4,7 @@
 """ 
 Additional info:
     https://docs.opencv.org/3.3.1/dc/dbb/tutorial_py_calibration.html
-    
-TODO: Re-projection Error
+
 """
 import numpy as np
 import cv2
@@ -51,7 +50,7 @@ for fname in images:
 		
         # Draw and display the corners
         img = cv2.drawChessboardCorners(img, (cbcol,cbrow), corners2, ret)
-        # cv2.imwrite("/chessboard_images/detected_corners/" + fname + "_chess.jpg", img) # Save image
+        # cv2.imwrite(image_folder +'/detected_corners/" + fname + "_chess.jpg", img) # Save image
 			
         # Make window and show image
         frame_name = 'detected chessboard'
@@ -60,6 +59,12 @@ for fname in images:
         cv2.imshow(frame_name, img)
         cv2.waitKey(250)
 
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None, criteria=criteria)
-
+retval, cameraMatrix, distCoeffs, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1],None,None, criteria=criteria)
 cv2.destroyAllWindows()
+
+mean_error = 0 # Reprojection error, should be as close to zero as possible
+for i in xrange(len(objpoints)):
+    imgpoints2, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], cameraMatrix, distCoeffs)
+    error = cv2.norm(imgpoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
+    mean_error += error
+print( "total error: {}".format(mean_error/len(objpoints)) ) 
