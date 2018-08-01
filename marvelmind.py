@@ -17,6 +17,11 @@ from file_select_gui import get_file_path
 
 
 def get_hedge_pos(bagFilePath, hedge='hedge_1'):
+    """
+        Return position of hedghog with accompagnying time vector.
+        
+    """
+    
 
     #   Get position data
     hedge_topic = "/" + hedge + "/hedge_pos"
@@ -39,6 +44,29 @@ def get_hedge_pos(bagFilePath, hedge='hedge_1'):
         
     return hedge_pos, hedge_time
 
+def get_marker_pos(bagFilePath):
+    """
+        Get marker position with timestamp in unix time
+    """
+    
+    marker_msgs = bag.get_topic_data(bagFilePath, "/visualization_marker")
+    marker_pos = [[],[],[]] # Marker coordinates [x,y,z]
+    marker_time = []
+    
+    for marker_msg in marker_msgs:        
+        # Reject positions with large z coordinates as these are likely the 
+        # beacons (z= 2.8)
+        
+        if marker_msg.pose.position.z < 1.5:
+        
+            marker_time.append(marker_msg.header.stamp)
+            marker_pos[0].append(marker_msg.pose.position.x)
+            marker_pos[1].append(marker_msg.pose.position.y)
+            marker_pos[2].append(marker_msg.pose.position.z)
+            
+    return marker_pos, marker_time
+
+    
 if __name__=="__main__":
     
     import matplotlib.pyplot as plt
