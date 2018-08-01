@@ -22,14 +22,22 @@ def get_hedge_pos(bagFilePath, hedge='hedge_1'):
     hedge_topic = "/" + hedge + "/hedge_pos"
     hedge_msgs = bag.get_topic_data(bagFilePath, hedge_topic)
     hedge_pos = np.empty([len(hedge_msgs), 3]) # Hedgehog coordinates [x,y,z]
+    hedge_time = np.empty(len(hedge_msgs))
     
     for i in range(len(hedge_msgs)):
         hedge_msg = hedge_msgs[i]
+        
+        # Convert timestamp to duration in seconds since start so that it can  
+        # be compared to other data from the same rosbag
+        if i == 0:
+            t_start = hedge_msg.timestamp_ms
+        hedge_time[i] = (hedge_msg.timestamp_ms - t_start)/1000.0 
+        
         hedge_pos[i][0] = hedge_msg.x_m
         hedge_pos[i][1] = hedge_msg.y_m
         hedge_pos[i][2] = hedge_msg.z_m
         
-    return hedge_pos
+    return hedge_pos, hedge_time
 
 if __name__=="__main__":
     
