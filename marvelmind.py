@@ -44,7 +44,7 @@ def get_hedge_pos(bagFilePath, hedge='hedge_1'):
         
     return hedge_pos, hedge_time
 
-def get_marker_pos(bagFilePath):
+def get_marker_pos(bagFilePath, z_lim=1.5):
     """
         Get marker position with timestamp in unix time
     """
@@ -57,9 +57,9 @@ def get_marker_pos(bagFilePath):
         # Reject positions with large z coordinates as these are likely the 
         # beacons (z= 2.8)
         
-        if marker_msg.pose.position.z < 1.5:
+        if marker_msg.pose.position.z < z_lim:
         
-            marker_time.append(marker_msg.header.stamp)
+            marker_time.append(marker_msg.header.stamp.to_sec())
             marker_pos[0].append(marker_msg.pose.position.x)
             marker_pos[1].append(marker_msg.pose.position.y)
             marker_pos[2].append(marker_msg.pose.position.z)
