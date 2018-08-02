@@ -42,10 +42,30 @@ def rotate_point(origin, point, angle):
     qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
     
     return qx, qy
-
 #==============================================================================
 #               OTHER FUNCTIONS       
 #==============================================================================
+def get_light_intensities(bagFilePath, duration=True):
+    light_msgs = bag.get_topic_data(bagFilePath, "/light_intensity")
+    intensities = np.empty([len(light_msgs), 5])
+    light_time = np.empty([len(light_msgs)])
+    
+    for i in range(len(light_msgs)):
+        light_msg = light_msgs[i]
+        intensities[i] = light_msg.intensity
+        
+        if duration:
+            if i == 0:
+                t_start = light_msg.header.stamp
+                
+            t = light_msg.header.stamp - t_start
+        else:
+            t = light_msg.header.stamp
+            
+        light_time[i] = t.to_sec()
+        
+    return intensities, light_time
+
 def get_dr(all_x_est, all_y_est, all_x_ref, all_y_ref):
     
     dr = np.ones(len(all_x_est))
@@ -82,27 +102,15 @@ if __name__ == "__main__":
 
     #   Select files with GUI
 #    bagFilePath = get_file_path("Select .bag file").name    
-    bagFilePath = "/home/robin/catkin_ws/src/benchmarking/example_data/_2018-07-12-16-06-53.bag"
+    bagFilePath = "/home/robin/catkin_ws/src/benchmarking/example_data/UVLP_path_1.bag"
     
     #   PROCESS LIGHT MEASUREMENTS
-    light_msgs = bag.get_topic_data(bagFilePath, "/light_intensity")
-    intensities = np.empty([len(light_msgs), 5])
-    time = np.empty([len(light_msgs)])
-    
-    for i in range(len(light_msgs)):
-        light_msg = light_msgs[i]
-        intensities[i] = light_msg.intensity
-        
-        if i == 0:
-            t_start = light_msg.header.stamp
-            
-        t = light_msg.header.stamp - t_start
-        time[i] = t.to_sec()
+    intensities, light_time = get_light_intensities(bagFilePath, duration=False)
     
     # Reduce noise and outliers with butterworth low pass filter
     intensities_filtered = np.empty_like(intensities)
     for i in range(rx_i):
-        intensities_filtered[:,i] = butter_lowpass_filter(intensities[:,i], 1, len(intensities)/time[-1], order=1)
+        intensities_filtered[:,i] = butter_lowpass_filter(intensities[:,i], 1, len(intensities)/(light_time[-1]-light_time[0]), order=1)
         
     #   HEDGEHOG POSITIONS
     hedge_1_pos, hedge_1_time = marvelmind.get_hedge_pos(bagFilePath, hedge='hedge_1')
