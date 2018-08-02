@@ -61,9 +61,8 @@ def get_joint_data(bagFile, joint_name, duration=True):
 
             # Get timestamp in seconds
             t = msg.transforms[0].header.stamp
-            
+            t_sec = t.to_sec()
             if duration:
-                t_sec = t.to_sec()
                 if first:
                     t_0 = t_sec
                     first = False
@@ -71,7 +70,7 @@ def get_joint_data(bagFile, joint_name, duration=True):
                 all_t = np.append(all_t, t_sec-t_0)  
                 
             else:
-                all_t = np.append(all_t, t)
+                all_t = np.append(all_t, t_sec)
 
             
             # Get x, y and z coordinates
