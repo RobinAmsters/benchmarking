@@ -101,8 +101,9 @@ if __name__ == "__main__":
     rx_i = 1 # Number of receivers to process, set to 5 for all receivers
 
     #   Select files with GUI
-#    bagFilePath = get_file_path("Select .bag file").name    
-    bagFilePath = "/home/robin/catkin_ws/src/benchmarking/example_data/UVLP_path_1.bag"
+    bagFilePath = get_file_path("Select .bag file").name    
+#    bagFilePath = "/home/robin/catkin_ws/src/benchmarking/example_data/UVLP_path_1.bag" # Test file for general function testing
+#    bagFilePath = "/home/robin/catkin_ws/src/uvlp/bag/mapping_LED/all_LED/_2018-07-12-15-45-19.bag" # Smal model verification dataset use _2018-07-12-15-34-09.bag for a very large dataset
     
     #   PROCESS LIGHT MEASUREMENTS
     intensities, light_time = get_light_intensities(bagFilePath, duration=False)
@@ -115,27 +116,69 @@ if __name__ == "__main__":
     #   HEDGEHOG POSITIONS
     hedge_1_pos, hedge_1_time = marvelmind.get_hedge_pos(bagFilePath, hedge='hedge_1')
     hedge_2_pos, hedge_2_time = marvelmind.get_hedge_pos(bagFilePath, hedge='hedge_2')
+        
+    #   BEACON POSITIONS
+    beacon_msgs = bag.get_topic_data(bagFilePath, "/hedge_1/beacons_pos_a")
+    beacon_pos = {}
+    for beacon_msg in beacon_msgs:
+        if not beacon_msg.address in beacon_pos.keys(): # Only add beacons not yet present in dictionary
+            beacon_pos[beacon_msg.address] = [beacon_msg.x_m, beacon_msg.y_m, beacon_msg.z_m]
+            
+    #   MARKER POSITION
+    marker_pos, marker_time = marvelmind.get_marker_pos(bagFilePath)
+    
+    #   ROBOT POSITION
+    robot_pose, robot_time = bag.get_joint_data(bagFilePath, "pose", duration=False)
+    
+    # Transform marvelmind to robot coordinate frame because all robot data is 
+    # expressed in that frame (eg. intensity measurements)
+#    marker_pos_orig = np.copy(marker_pos)
+#    dx_0 = robot_pose[0][0] - marker_pos[0][0]
+#    dy_0 = robot_pose[1][0] - marker_pos[1][0]
+#    marker_pos[0] = marker_pos[0] + dx_0
+#    marker_pos[1] = np.multiply(-1.0, (marker_pos[1] + dy_0))
+    marker_pos[1] = np.multiply(-1.0, (marker_pos[1]))
+    
 #%%                   VERIFIFY MODEL    
     room = vlp.Room() 
-# TODO: add real LED positions from beacon locations
-    intensity_model = room.predict_measurement_xy(hedge_1_pos[:,0], hedge_1_pos[:,1], estimated_params={})
-    print intensity_model
+    intensity_robot_model =  room.predict_measurement_xy(robot_pose[0], robot_pose[1], estimated_params={})
+    
+    # Use beacon locations for transmitter positions
+    # TODO: add offset
+    transmitters_marvelmind = []
+    for address in beacon_pos.keys():
+        pos = beacon_pos[address]
+        transmitters_marvelmind.append(vlp.LED(position=np.array(pos)))
+    room.transmitters = transmitters_marvelmind
+    intensity_model = room.predict_measurement_xy(marker_pos[0], marker_pos[1], estimated_params={})
     
 #%%                   CALCULATE POSITIONING ERROR
        
 #%%                   PLOTTING
-            
     fig = plt.figure(1)        
     fig.clf()
     plt.title('Light intensity measurements')
     plt.xlabel('Time [s]')
     plt.ylabel('ADC voltage [V]')
     for i in range(rx_i):
-        plt.plot(time, intensities[:,i], label='Receiver ' + str(i+1)) 
-        plt.plot(time, intensities_filtered[:,i], label='Receiver ' + str(i+1) + ' filtered') 
-    plt.plot(hedge_1_time, intensity_model[2], label='Model')
-    plt.xlim([0.0, time[-1]])
+        plt.plot(light_time, intensities[:,i], label='Receiver ' + str(i+1)) 
+        plt.plot(light_time, intensities_filtered[:,i], label='Receiver ' + str(i+1) + ' filtered') 
+    plt.plot(marker_time, intensity_model[2], label='Model at Marvelmind positions')
+    plt.plot(robot_time, intensity_robot_model[2], label='Model at robot estimates', color='r')
+    plt.xlim([0.0, light_time[-1]])
     plt.ylim([0.0, 5.0])
     plt.legend()
     plt.grid()
+    
+    fig = plt.figure(2)        
+    fig.clf()
+    plt.title('Robot position')
+    plt.xlabel('X [m]')
+    plt.ylabel('y [m]')
+    plt.plot(robot_pose[0], robot_pose[1], label='Estimate')
+    plt.plot(marker_pos[0], marker_pos[1], label='Marvelmind transformed')
+    plt.legend()
+    plt.grid()
+
+
     plt.show()
