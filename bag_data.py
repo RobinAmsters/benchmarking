@@ -31,7 +31,7 @@ def get_topic_data(bagFile, topic):
     return all_msg
 #==============================================================================
 
-def get_joint_data(bagFile, joint_name, convert_to_sec=True):
+def get_joint_data(bagFile, joint_name, duration=True):
     """
         Function that filters bag files to obtain data from a joint that is 
         published to the /tf topic.
@@ -62,12 +62,15 @@ def get_joint_data(bagFile, joint_name, convert_to_sec=True):
             # Get timestamp in seconds
             t = msg.transforms[0].header.stamp
             t_sec = t.to_sec()
-            
-            if (first and convert_to_sec):
-                t_0 = t_sec
-                first = False
-
-            all_t = np.append(all_t, t_sec-t_0)        
+            if duration:
+                if first:
+                    t_0 = t_sec
+                    first = False
+    
+                all_t = np.append(all_t, t_sec-t_0)  
+                
+            else:
+                all_t = np.append(all_t, t_sec)
 
             
             # Get x, y and z coordinates
