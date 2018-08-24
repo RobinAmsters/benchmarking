@@ -24,7 +24,7 @@ def get_hedge_pos(bagFilePath, hedge='hedge_1'):
     
 
     #   Get position data
-    hedge_topic = "/" + hedge + "/hedge_pos"
+    hedge_topic = "/hedge_pos"
     hedge_msgs = bag.get_topic_data(bagFilePath, hedge_topic)
     hedge_pos = np.empty([len(hedge_msgs), 3]) # Hedgehog coordinates [x,y,z]
     hedge_time = np.empty(len(hedge_msgs))

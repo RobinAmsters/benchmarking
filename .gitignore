@@ -1,3 +1,6 @@
 *.ini
 *.pyc
 .spyproject
+.idea
+venv
+*.pckl
