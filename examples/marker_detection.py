@@ -57,7 +57,7 @@ def track_marker():
 
 
     visualize(all_tvec, saveFig=save_figs)
-    write_to_csv(np.column_stack((X, Y, Z)), '/tmp/test_vid', 0, 30)
+    write_to_csv(np.column_stack((X, Y, Z)), '/tmp/test_vid.csv', 0, 30)
 
 
 def project_in_main_plane(matrix):

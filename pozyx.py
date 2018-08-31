@@ -8,12 +8,13 @@ This tutorial requires at least the contents of the Pozyx Ready to Localize kit.
 of the Pozyx device both locally and remotely. Follow the steps to correctly set up your environment in the link, change the
 parameters and upload this sketch. Watch the coordinates change as you move your device around!
 """
-
+from __future__ import print_function
 from pypozyx import (POZYX_POS_ALG_UWB_ONLY, POZYX_2D, Coordinates, POZYX_SUCCESS, POZYX_ANCHOR_SEL_AUTO,
                      DeviceCoordinates, PozyxSerial, get_first_pozyx_serial_port, SingleRegister, DeviceList)
 import csv
 import time
 import datetime
+
 
 
 class ReadyToLocalize(object):
@@ -64,8 +65,8 @@ class ReadyToLocalize(object):
         network_id = self.remote_id
         if network_id is None:
             network_id = 0
-        print("POS ID {}, x(mm): {pos.x} y(mm): {pos.y} z(mm): {pos.z}".format(
-            "0x%0.4x" % network_id, pos=position))
+        print("\rPOS ID {}, x(mm): {pos.x} y(mm): {pos.y} z(mm): {pos.z}".format(
+            "0x%0.4x" % network_id, pos=position), end='')
 
     def printPublishErrorCode(self, operation):
         """Prints the Pozyx's error and possibly sends it as a OSC packet"""
@@ -73,7 +74,7 @@ class ReadyToLocalize(object):
         network_id = self.remote_id
         if network_id is None:
             self.pozyx.getErrorCode(error_code)
-            print("LOCAL ERROR %s, %s" % (operation, self.pozyx.getErrorMessage(error_code)))
+            print("LOCAL ERROR %s, %s" % (operation, self.pozyx.getErrorMessage(error_code)), end='\r')
             return
         status = self.pozyx.getErrorCode(error_code, self.remote_id)
         if status == POZYX_SUCCESS:
@@ -125,7 +126,7 @@ class ReadyToLocalize(object):
 
 
 if __name__ == "__main__":
-    outputfile = '~/quinten/'+ str(datetime.datetime.now()).replace(' ', '_') + '_pozywx.csv'
+    outputfile = 'output/'+ str(datetime.datetime.now()).replace(' ', '_') + '_pozywx.csv'
     # shortcut to not have to find out the port yourself
     serial_port = get_first_pozyx_serial_port()
     if serial_port is None:
@@ -137,10 +138,10 @@ if __name__ == "__main__":
 
 
     # necessary data for calibration, change the IDs and coordinates yourself
-    anchors = [DeviceCoordinates(0x6745, 1, Coordinates(0, 0, 277)),
-               DeviceCoordinates(0x6744, 1, Coordinates(4051, 0, 277)),
-               DeviceCoordinates(0x6733, 1, Coordinates(4118, 3071, 277)),
-               DeviceCoordinates(0x6765, 1, Coordinates(105, 3074, 277))]
+    anchors = [DeviceCoordinates(0x6733, 1, Coordinates(4577, 0, 277)),
+               DeviceCoordinates(0x6765, 1, Coordinates(0, 0, 277)),
+               DeviceCoordinates(0x6744, 1, Coordinates(-114, 6105, 277)),
+               DeviceCoordinates(0x6745, 1, Coordinates(4681, 6264, 277))]
 
     algorithm = POZYX_POS_ALG_UWB_ONLY  # positioning algorithm to use
     dimension = POZYX_2D               # positioning dimension

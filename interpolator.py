@@ -1,25 +1,5 @@
 import numpy as np
 import sys
-import itertools
-
-from numpy.core.multiarray import ndarray
-
-
-def interpolate_based_on_dataset(dataset, timepoint):
-    """
-    Linear interpolation to find the coordinate values from the dataset at the given timepoint.
-
-    :param dataset: np.ndarray with rows containing [timestamp, X, Y, Z]
-    :param timepoint: timestamp to calculate position of
-    :return: np.ndarray([X, Y, Z])
-    """
-    lowerIndex = np.searchsorted(dataset[:, 0], timepoint)
-    higherIndex = lowerIndex + 1
-    if higherIndex == len(dataset[:, 0]):
-        raise Exception(
-            "The datarange of the dataset is to small to ifnd the timepoint, this function cannot extrapolate.")
-    factor = float(timepoint - dataset[lowerIndex, 0]) / (dataset[higherIndex, 0] - dataset[lowerIndex, 0])
-    return dataset[lowerIndex, 1:] + factor * (dataset[higherIndex, 1:] - dataset[lowerIndex, 1:])
 
 
 def transform_to_common(dataset1, dataset2):
@@ -81,24 +61,13 @@ def find_pose(originalPositions, movedPositions):
     pose = np.block([[R, meanPos], [0, 0, 0, 1]])
     error = 0
     for i in range(originalPositions.shape[0]):
-        error += np.sum(np.abs(movedPositions[i, :] - np.dot(pose, np.append(originalPositions[i,:],1))[:3]))
+        error += np.sum(np.abs(movedPositions[i, :] - np.dot(pose, np.append(originalPositions[i, :], 1))[:3]))
     if error > 30:
         return None
     return np.block([[R, meanPos], [0, 0, 0, 1]])  # TODO: Not sure about block
 
 
-def match_rate(referenceTimeStamps, measuredPoints):
-    rate = len(referenceTimeStamps) / float(referenceTimeStamps[-1] - referenceTimeStamps[0])
-    measuredPoints[:, 0] -= measuredPoints[0, 0]
-    newPoints = list()
-    i = 0
-    while i * rate < measuredPoints[-1, 0]:
-        newPoints.append([rate * i] + interpolate_based_on_dataset(measuredPoints, rate * i))
-        i += 1
-    return np.array(newPoints), rate
-
-
-def match_datasets(initialMarkerPositions, markerTracks, initialEvaluationPosition, evaluationTrack):
+def overlap_datasets(markerTimePoints, transformedMarkerPositions, evaluationTrack, referenceFramerate=1/50):
     """
 
     :param initialMarkerPositions:
@@ -108,60 +77,8 @@ def match_datasets(initialMarkerPositions, markerTracks, initialEvaluationPositi
     :param evaluationTrack:
     :return:
     """
-    evaluationTrackSynced, rate = match_rate(markerTracks[0, 1:, 0], evaluationTrack)
-    minOverlap = int(rate * 4)  # TODO: figure out realistic overlap
-
-    transformedEvaluationPositions = list()
-
-    for i in range(markerTracks.shape[1]):
-        pose = find_pose(initialMarkerPositions, markerTracks[:, i, 1:])
-        transformedEvaluationPositions.append(np.dot(pose, initialEvaluationPosition))
-    transformedEvaluationPositions = np.array(transformedEvaluationPositions)
-
-    transformedLen = len(transformedEvaluationPositions)
-    evaluationSyncLen = len(evaluationTrackSynced)
-    nb_iterations = transformedLen + evaluationSyncLen - 2 * minOverlap
-
-    minErr = sys.float_info.max
-    markerStart = 0
-    evaluationStart = 0
-
-    for i in range(nb_iterations):
-        if transformedLen - i - minOverlap > minOverlap:
-            transFStart = transformedLen - i - minOverlap
-            evalTStart = 0
-        else:
-            transFStart = minOverlap
-            evalTStart = i + 2 * minOverlap - transformedLen
-        # transFStart = 0
-        # evalTStart = 0
-        overlapLen = min(transformedLen - transFStart, evaluationSyncLen - evalTStart)
-
-        originalTransformed, measuredTransformed = transform_to_common(
-            transformedEvaluationPositions[transFStart:transFStart + overlapLen, :],
-            evaluationTrackSynced[evalTStart:evalTStart + overlapLen, :])
-        error = error_func(originalTransformed, measuredTransformed)
-        if error < minErr:
-            minErr = error
-            markerStart = transFStart
-            evaluationStart = evalTStart
-
-    return markerStart, evaluationStart
-
-
-def overlap_datasets(markerTimePoints, transformedMarkerPositions, evaluationTrack):
-    """
-
-    :param initialMarkerPositions:
-    :param markerTracks: The measured positions of the different markers, the measurements are assumed to be at a constant rate.
-        The timestamps are assumed to be equal among the different markers.
-    :param initialEvaluationPosition:
-    :param evaluationTrack:
-    :return:
-    """
-    kryptonRate = 50  # markerTracks.shape[1]/(markerTracks[0, -1, 0] - markerTracks[0, 0,0])
     evaluationTrack[:, 0] -= evaluationTrack[0, 0]
-    kryptonIndices = get_virtual_indices(kryptonRate, evaluationTrack[:, 0])
+    kryptonIndices = get_virtual_indices(referenceFramerate, evaluationTrack[:, 0])
     return timeShift(evaluationTrack, kryptonIndices, transformedMarkerPositions, markerTimePoints)
 
 
@@ -177,24 +94,43 @@ def get_transformed_marker_position(initialEvaluationPosition, initialMarkerPosi
     return transformedMarkerPositions
 
 
+def get_transformed_vive_position(initialEvaluationPosition, initialVivePosition, viveMatrix):
+    transformedVivePositions = list()
+    for i in range(len(viveMatrix)):
+        R = viveMatrix[i][0][:, :3]
+        p = viveMatrix[i][0][:, 3] * 1000
+        originP = p - np.dot(R, initialVivePosition) + initialVivePosition
+        transformedVivePositions.append(originP + np.dot(R, initialEvaluationPosition))
+    return transformedVivePositions
+
+
 def timeShift(evaluationTrack, kryptonIndices, transformedMarkerPositions, markerTimePoints):
-    minOverlap = 15  # seconds of overlap TODO: figure out realistic overlap
+    """
+    Find how much the evaluation track is shifted in time versus the reference (transformedMarkerPOsitions)
+    :param evaluationTrack: numpy ndarray containing the positions of the system to evaluate: [[time, X, Y, Z]]
+    :param kryptonIndices: a list of numbers containing the matching index in transformedMarkerPositions for each point in the evaluationtrack.
+    :param transformedMarkerPositions: the positions of the measurement system to evaluate according to the Krypton system.
+    :param markerTimePoints: the timestamps of transformedMarkerPositions
+    :return:
+    """
+    minOverlap = 5  # seconds of overlap TODO: figure out realistic overlap
     minErr = sys.float_info.max
 
     finalOffset = 0
     finalR = None
     finalTranslation = None
 
-    minOffset = - np.searchsorted(evaluationTrack[:, 0], evaluationTrack[-1, 0] - minOverlap)
+    minOffset = - kryptonIndices[np.searchsorted(evaluationTrack[:, 0], evaluationTrack[-1, 0] - minOverlap)]
     maxOffset = np.searchsorted(markerTimePoints, markerTimePoints[-1] - minOverlap)
     offsets = range(minOffset, maxOffset)
     for offset in offsets:
-        start = max(0, -offset)
+        start = np.searchsorted(kryptonIndices + offset, 0, side='right')
         end = np.searchsorted(kryptonIndices + offset, len(transformedMarkerPositions))
         markerPoints = transformedMarkerPositions[kryptonIndices[start:end] + offset]
         evaluationPoints = evaluationTrack[start:end]
 
-        evaluationTransformed, markerTransformed, R, translation = transform_to_common(evaluationPoints[:, 1:], markerPoints)
+        evaluationTransformed, markerTransformed, R, translation = transform_to_common(evaluationPoints[:, 1:],
+                                                                                       markerPoints)
         error = error_func(markerTransformed, evaluationTransformed)
 
         if error < minErr:
@@ -212,14 +148,11 @@ def get_virtual_indices(kryptonRate, timestamps):
 
 def error_func(referenceSet, evaluationSet):
     refMean = np.mean(referenceSet, axis=0)
-    variance = np.sum((referenceSet - refMean)**2)
-    if variance**0.5 < 5000:
+    variance = np.sum((referenceSet - refMean) ** 2)
+    if variance ** 0.5 < 2000:  # guarantee at least 5m of movement within interval.
         return sys.float_info.max
     return float(np.sum(np.abs(referenceSet - evaluationSet))) / len(referenceSet)
 
-
-def find_overlapping():
-    pass
 
 if __name__ == '__main__':
     c = np.array([[1, 2, 5], [3, 5, 4], [10, 8, 9]])

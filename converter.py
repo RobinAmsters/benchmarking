@@ -85,4 +85,4 @@ def write_to_csv(fileName, timestamps, positions):
 
 
 if __name__ == '__main__':
-    convert_file('/home/quinten/Documents/vakantiejob/results/Video/2016-02-11-11-42-57.bag')
+    convert_file('/home/quinten/Documents/vakantiejob/results/temp/2016-02-11-11-41-08.bag')
