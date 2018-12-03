@@ -16,7 +16,7 @@ import numpy as np
 from file_select_gui import get_file_path
 
 
-def get_hedge_pos(bagFilePath, hedge='hedge_1'):
+def get_hedge_pos(bag_file_path, hedge='hedge_1'):
     """
         Return position of hedghog with accompagnying time vector.
         
@@ -25,7 +25,7 @@ def get_hedge_pos(bagFilePath, hedge='hedge_1'):
 
     #   Get position data
     hedge_topic = "/" + hedge + "/hedge_pos"
-    hedge_msgs = bag.get_topic_data(bagFilePath, hedge_topic)
+    hedge_msgs = bag.get_topic_data(bag_file_path, hedge_topic)
     hedge_pos = np.empty([len(hedge_msgs), 3]) # Hedgehog coordinates [x,y,z]
     hedge_time = np.empty(len(hedge_msgs))
     
@@ -44,25 +44,27 @@ def get_hedge_pos(bagFilePath, hedge='hedge_1'):
         
     return hedge_pos, hedge_time
 
-def get_marker_pos(bagFilePath, z_lim=1.5):
+def get_marker_pos(bag_file_path, z_lim=1.5):
     """
-        Get marker position with timestamp in unix time
+        Get marker position [x, y, z] with timestamp in unix time
     """
     
-    marker_msgs = bag.get_topic_data(bagFilePath, "/visualization_marker")
+    marker_msgs = bag.get_topic_data(bag_file_path, "/visualization_marker")
     marker_pos = [[],[],[]] # Marker coordinates [x,y,z]
-    marker_time = []
+    marker_time = np.array([])
     
     for marker_msg in marker_msgs:        
         # Reject positions with large z coordinates as these are likely the 
         # beacons (z= 2.8)
         
         if marker_msg.pose.position.z < z_lim:
-        
-            marker_time.append(marker_msg.header.stamp.to_sec())
+
+            marker_time = np.append(marker_time, marker_msg.header.stamp.to_sec())
             marker_pos[0].append(marker_msg.pose.position.x)
             marker_pos[1].append(marker_msg.pose.position.y)
             marker_pos[2].append(marker_msg.pose.position.z)
+
+    marker_pos = np.asarray(marker_pos)
             
     return marker_pos, marker_time
 
