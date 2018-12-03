@@ -66,6 +66,20 @@ def get_marker_pos(bagFilePath, z_lim=1.5):
             
     return marker_pos, marker_time
 
+def get_beacon_pos(bag_file_path):
+    """!
+    @param bag_file_path: full path to rosbag file
+    @return beacon_pos: beacon locations in a dictionary containing the x, y and z coordinates per beacon address
+    """
+
+    beacon_msgs = bag.get_topic_data(bag_file_path, "/hedge_1/beacons_pos_a")
+    beacon_pos = {}
+    for beacon_msg in beacon_msgs:
+        if beacon_msg.address not in beacon_pos.keys():  # Only add beacons not yet present in dictionary
+            beacon_pos[beacon_msg.address] = [beacon_msg.x_m, beacon_msg.y_m, beacon_msg.z_m]
+
+    return beacon_pos
+
     
 if __name__=="__main__":
     
