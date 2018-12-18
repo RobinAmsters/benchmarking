@@ -18,11 +18,11 @@ import os
 import sys
 
 from fnmatch import fnmatch
-from FileSelectGui import getDirectoryPath, getFilePath
+from file_select_gui import get_directory_path, get_file_path
 
 import numpy as np
 
-def getAllBagFilesInDirectory(directory):
+def get_all_bag_files_in_directory(directory):
     """
         Function that returns all the path to all .bag files in a directory
         and its subdirectories
@@ -32,25 +32,25 @@ def getAllBagFilesInDirectory(directory):
     root = directory
     pattern = "*.bag"
     
-    bagFiles = np.array([])
+    bag_files = np.array([])
     
     for path, subdirs, files in os.walk(root):
         for name in files:
             if fnmatch(name, pattern):
-                bagFiles = np.append(bagFiles, os.path.join(path, name))
+                bag_files = np.append(bag_files, os.path.join(path, name))
     
-    return bagFiles
+    return bag_files
 
-def filterBagFile(bagPath, topics):
+def filter_bag_file(bag_path, topics):
     """
         Function that filters all topics in a single bag file except the ones
         relevant for retesing the VLP algorithm
         
     """
     
-    new_bag = bagPath[0:len(bagPath)-4] + '_filtered.bag' # Construct name of new .bag file
+    new_bag = bag_path[0:len(bag_path) - 4] + '_filtered.bag' # Construct name of new .bag file
     
-    cmd = 'rosbag filter ' + bagPath + ' ' + new_bag + ' \'topic=="' + topics[0] + '"'
+    cmd = 'rosbag filter ' + bag_path + ' ' + new_bag + ' \'topic=="' + topics[0] + '"'
     
     for i in range(1,len(topics)):
         cmd = cmd + ' or topic =="' + topics[i] + '"'
@@ -61,12 +61,15 @@ def filterBagFile(bagPath, topics):
 if __name__ == "__main__":
         
     args = sys.argv
-    topics = ['/light_intensity', '/mobile_base/sensors/core', '/mobile_base/sensors/imu_data', '/scan']
+    topics = ['/light_intensity', '/mobile_base/sensors/core', '/mobile_base/sensors/imu_data',
+              '/mobile_base/sensors/imu_data_raw', '/visualization_marker',
+              '/hedge_1/beacons_pos_a', '/hedge_1/hedge_pos', '/hedge_1/hedge_pos_a', '/hedge_1/hedge_pos_ang',
+              '/hedge_2/beacons_pos_a', '/hedge_2/hedge_pos', '/hedge_2/hedge_pos_a', '/hedge_2/hedge_pos_ang']
     
     # If no argument is passed, filter a single file
     if len(sys.argv) < 2:
-        bagFile = getFilePath('Select bag file').name
-        filterBagFile(bagFile, topics)  
+        bagFile = get_file_path('Select bag file').name
+        filter_bag_file(bagFile, topics)
     
     # If a valid argument is passed, filter the entire directory and all subdirectories    
     else:
@@ -74,12 +77,12 @@ if __name__ == "__main__":
         acceptable_agrs = ['dir', 'Dir', 'directory', 'Directory', 'filterdir', 'filterdirectory', 'FilterDirectory', 'filter_dir', 'filter_directory']
         
         if filter_arg in acceptable_agrs:
-            bagDir = getDirectoryPath('Select directory of .bag files to filter (SUBDIRECTORIES WILL BE FILTERED TOO)')     # Select directory via GUI
-            bagFiles = getAllBagFilesInDirectory(bagDir)                                                                    # Get all bag files in a directory
+            bag_dir = get_directory_path('Select directory of .bag files to filter (SUBDIRECTORIES WILL BE FILTERED TOO)')     # Select directory via GUI
+            bag_files = get_all_bag_files_in_directory(bag_dir)                                                                    # Get all bag files in a directory
             
-            for bagFile in bagFiles:                                                                                        # Filter all bag files
-                print("Processing file: " + bagFile)
-                filterBagFile(bagFile, topics)
+            for bag_file in bag_files:                                                                                        # Filter all bag files
+                print("Processing file: " + bag_file)
+                filter_bag_file(bag_file, topics)
                 
         else:
             print(str(filter_arg) +  ' is not a known argument, acceptable arguments are: ' + str(acceptable_agrs))
