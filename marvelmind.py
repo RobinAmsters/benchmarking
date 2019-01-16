@@ -9,11 +9,39 @@ Created on Tue Jul 31 11:49:26 2018
 
 
 """
-
+import math
 import bag_data as bag
 import numpy as np
 
 from file_select_gui import get_file_path
+
+
+def rotate_point(origin, point, angle):
+    """!
+        @brief Rotate a point counterclockwise by a given angle around a given origin (in 2D)
+
+        @param origin: origin around which to rotate the point [x, y]
+        @param point: point to rotate  [x, y]
+        @param angle: rotation angle in radians.
+    """
+    ox, oy = origin
+    px, py = point
+
+    qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+    qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+
+    return qx, qy
+
+
+def transform_to_marvelmind(all_pos, beacon_origin):
+    all_pos_rot_trans = np.empty([len(all_pos),2])
+    for i in range(len(all_pos)):
+        pos = all_pos[i]
+        pos_rot = rotate_point([0.0, 0.0], [pos[0], pos[1]], np.radians(-45))
+        pos_rot_trans = [pos_rot[0] - beacon_origin[0], pos_rot[1] - beacon_origin[1]]
+        all_pos_rot_trans[i] = pos_rot_trans
+
+    return all_pos_rot_trans
 
 def get_vector_angle(p1, p2):
     """!
@@ -71,7 +99,7 @@ def align_time_index(time_1, time_2, slack=0.01):
 
     return index_1, index_2
 
-def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, slack=0.1):
+def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_positions, slack=0.1):
     """!
     @brief returns the ground truth robot pose based on marvelmind hedgehog locations
 
@@ -94,11 +122,13 @@ def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, slack=0
         hedge_2_i = hedge_2_index[i]
 
         # Get robot position from hedgehog coordinates, assume hedgehogs ar
-        robot_pose[i, 0] = np.average([hedge_1_pos[hedge_1_i, 0], hedge_2_pos[hedge_2_i, 0]])
-        robot_pose[i, 1] = np.average([hedge_1_pos[hedge_1_i, 1], hedge_2_pos[hedge_2_i, 1]])
+        theta = get_vector_angle(hedge_1_pos[hedge_1_index[i]], hedge_2_pos[hedge_2_index[i]])
+        # @todo identify hedge adress somehow
+        robot_pose[i, 0] = x_hedhe_g + x_hedhe_r*np.sin(theta) - y_hedhe_r*np.cos(theta)
+        robot_pose[i, 1] = y_hedhe_g - y_hedhe_r*np.sin(theta) - y_hedhe_r*np.cos(theta)
 
         # Get angle between hedgehogs, to be used as ground truth for robot heading
-        robot_pose[i, 2] = get_vector_angle(hedge_1_pos[hedge_1_index[i]], hedge_2_pos[hedge_2_index[i]])
+        robot_pose[i, 2] = theta
 
         # Take timestamps of robot pose the same as aligned timestamps of first hedgehog, should not be too different
         # from second hedgehog anyway depending on the slack
@@ -106,13 +136,43 @@ def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, slack=0
 
     return robot_pose, robot_time
 
+def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hedge_1', 'hedge_2']):
+
+    hedge_pos = {}
+    hedge_time = {}
+    for id in hedge_address:
+        hedge_pos[id] = []
+        hedge_time[id] = []
+
+    #   Get position data
+    for hedge in hedge_names:
+        hedge_topic = "/" + hedge + "/hedge_pos_ang"
+        hedge_msgs = bag.get_topic_data(bag_file_path, hedge_topic)
+
+        for i in range(len(hedge_msgs)):
+            hedge_msg = hedge_msgs[i]
+            id = hedge_msg.address
+            # Convert timestamp to duration in seconds since start so that it can
+            # be compared to other data from the same rosbag
+            if i == 0:
+                t_start = hedge_msg.timestamp_ms
+
+            hedge_time[id].append((hedge_msg.timestamp_ms - t_start) / 1000.0)
+            hedge_pos[id].append([hedge_msg.x_m, hedge_msg.y_m, hedge_msg.z_m])
+
+    # Convert to numpy arrays for easier indexing
+    for id in hedge_pos.keys():
+        hedge_pos[id] = np.asarray(hedge_pos[id])
+        hedge_time[id] = np.asarray(hedge_time[id])
+
+    return hedge_pos, hedge_time
+
 
 def get_hedge_pos(bag_file_path, hedge='hedge_1'):
     """
         Return position of hedghog with accompagnying time vector. Time vector is relative to experiment starting time
         
     """
-    
 
     #   Get position data
     hedge_topic = "/" + hedge + "/hedge_pos_ang"
