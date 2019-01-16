@@ -13,23 +13,25 @@ import rosbag
 import numpy as np
 from file_select_gui import get_file_path
 
-#==============================================================================
+
+# ==============================================================================
 def get_topic_data(bagFile, topic):
     """
         Return all messages from a specific topic
     """
-    
+
     all_msg = []
-    
+
     # Initialize rosbag object
     bag = rosbag.Bag(bagFile)
-    
+
     for topic, msg, t in bag.read_messages(topics=[topic]):
-        
         all_msg = np.append(all_msg, msg)
 
     return all_msg
-#==============================================================================
+
+
+# ==============================================================================
 
 def get_joint_data(bagFile, joint_name, duration=True):
     """
@@ -48,16 +50,16 @@ def get_joint_data(bagFile, joint_name, duration=True):
     y = np.array([])
     z = np.array([])
     all_t = np.array([])
-    bag = rosbag.Bag(bagFile) # Initialize rosbag object
-    first = True # True on first iteration to take first timestamp
+    bag = rosbag.Bag(bagFile)  # Initialize rosbag object
+    first = True  # True on first iteration to take first timestamp
 
     # Add message values to collections
     for topic, msg, t in bag.read_messages(topics=['/tf']):
-        
+
         joint = msg.transforms[0].child_frame_id
         translation = msg.transforms[0].transform.translation
-        
-        if joint == joint_name: 
+
+        if joint == joint_name:
 
             # Get timestamp in seconds
             t = msg.transforms[0].header.stamp
@@ -66,33 +68,33 @@ def get_joint_data(bagFile, joint_name, duration=True):
                 if first:
                     t_0 = t_sec
                     first = False
-    
-                all_t = np.append(all_t, t_sec-t_0)  
-                
+
+                all_t = np.append(all_t, t_sec - t_0)
+
             else:
                 all_t = np.append(all_t, t_sec)
 
-            
             # Get x, y and z coordinates
-            pose = [translation.x , translation.y, translation.z]
+            pose = [translation.x, translation.y, translation.z]
 
             x = np.append(x, pose[0])
             y = np.append(y, pose[1])
             z = np.append(z, pose[2])
-    
-    pose = [x,y,z]
-    
+
+    pose = [x, y, z]
+
     return pose, all_t
 
-#==============================================================================
+
+# ==============================================================================
 #           DEMO
-#==============================================================================
+# ==============================================================================
 if __name__ == "__main__":
-    
+
     # Open bagfile and obtain robot position
     bagFile = get_file_path('Select bag file').name
     pose, all_t = get_joint_data(bagFile, 'base_footprint')
-    
+
     # Get laptop charge data from rostopic
     charge_msgs = get_topic_data(bagFile, '/laptop_charge')
     t_charge = []
@@ -102,22 +104,21 @@ if __name__ == "__main__":
         # Get timestamp in seconds
         t = charge_msg.header.stamp
         t_sec = t.to_sec()
-        
+
         # Take first timestep as 0 seconds
         if first:
             t_0 = t_sec
             first = False
-        
+
         # Add data to collections
-        t_charge = np.append(t_charge, t_sec-t_0)
+        t_charge = np.append(t_charge, t_sec - t_0)
         voltage_charge = np.append(voltage_charge, charge_msg.voltage)
-        
-    
+
     # Plotting
     import matplotlib.pyplot as plt
-    
+
     fig = plt.figure(1)
-    
+
     # Plot robot pose
     ax = fig.add_subplot(211)
     ax.scatter(pose[0], pose[1], color='black', s=5, label='robot pose')
@@ -125,7 +126,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Y-coordinate [m]')
     plt.legend()
     plt.grid()
-    
+
     # Plot laptop charge
     ax = fig.add_subplot(212)
     ax.plot(t_charge, voltage_charge, color='black', label='laptop charge')
@@ -133,5 +134,5 @@ if __name__ == "__main__":
     ax.set_ylabel('Voltage [V]')
     plt.legend()
     plt.grid()
-    
+
     plt.show()

@@ -18,10 +18,10 @@ save_params = True
 
 # checkerboard Dimensions
 cbrow = 6 # Checkerboard rows
-cbcol = 8 # Checkerboard columns
-square_size = 40.5/1000 # Size of checkerboard square in millimeters, set to 1000 if square size is unknown
-image_folder = get_directory_path('Select folder containing calibration images')
-
+cbcol = 7  # Checkerboard columns
+square_size = 107.6 /1000 # Size of checkerboard square in millimeters, set to 1000 if square size is unknown
+# image_folder = get_directory_path('Select folder containing calibration images ')
+image_folder = '/home/quinten/Documents/vakantiejob/results/Video/images'
 # Termination criteria
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
@@ -34,23 +34,32 @@ objpoints = [] # 3D points in real world space
 imgpoints =  [] # 2D points in image plane
 
 images = glob.glob(image_folder+'/*.jpg')
+if images is None or not images:
+    images = glob.glob(image_folder+'/*.png')
 
 for fname in images:
 
     # Read image convert to grayscale
     img = cv2.imread(fname)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
+    binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 131 ,10)
+
+    cv2.imshow('gray', gray)
+    cv2.imshow('image', img)
+    cv2.imshow('binary', binary)
+
+    cv2.waitKey(0)
+
     print('Processing image: ' + fname)
     # Find the chess board corners
-    ret, corners = cv2.findChessboardCorners(gray, (cbcol, cbrow), None)
+    ret, corners = cv2.findChessboardCorners(binary, (cbcol, cbrow), None)
     
     # If found, add object points, image points (afte refining them)
     if ret == True:
         print('Chess board pattern found')
         objpoints.append(objp)
 			
-        corners2 = cv2.cornerSubPix(gray, corners, (11,11), (-1,-1), criteria)
+        corners2 = cv2.cornerSubPix(binary, corners, (11,11), (-1,-1), criteria)
         imgpoints.append(corners2)
 		
         # Draw and display the corners
