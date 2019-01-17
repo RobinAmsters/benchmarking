@@ -136,36 +136,51 @@ def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_p
 
     return robot_pose, robot_time
 
-def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hedge_1', 'hedge_2']):
+def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hedge_1','hedge_2']):
 
     hedge_pos = {}
+    hedge_rot = {}
     hedge_time = {}
     for id in hedge_address:
         hedge_pos[id] = []
+        hedge_rot[id] = []
         hedge_time[id] = []
 
-    #   Get position data
+    #   Get position data from all topics for all hedgehogs
+    all_hedge_msgs = []
     for hedge in hedge_names:
         hedge_topic = "/" + hedge + "/hedge_pos_ang"
         hedge_msgs = bag.get_topic_data(bag_file_path, hedge_topic)
+        all_hedge_msgs = np.append(all_hedge_msgs, hedge_msgs)
 
-        for i in range(len(hedge_msgs)):
-            hedge_msg = hedge_msgs[i]
-            id = hedge_msg.address
-            # Convert timestamp to duration in seconds since start so that it can
-            # be compared to other data from the same rosbag
-            if i == 0:
-                t_start = hedge_msg.timestamp_ms
+    # Seperate data based on ids
+    for i in range(len(all_hedge_msgs)):
+        hedge_msg = all_hedge_msgs[i]
+        id = hedge_msg.address
+        # Convert timestamp to duration in seconds since start so that it can
+        # be compared to other data from the same rosbag
+        if i == 0:
+            t_start = hedge_msg.timestamp_ms
 
-            hedge_time[id].append((hedge_msg.timestamp_ms - t_start) / 1000.0)
-            hedge_pos[id].append([hedge_msg.x_m, hedge_msg.y_m, hedge_msg.z_m])
+        hedge_time[id].append((hedge_msg.timestamp_ms - t_start) / 1000.0)
+        hedge_pos[id].append([hedge_msg.x_m, hedge_msg.y_m, hedge_msg.z_m])
+        hedge_rot[id].append(hedge_msg.angle)
 
     # Convert to numpy arrays for easier indexing
+    t_0 = []
     for id in hedge_pos.keys():
-        hedge_pos[id] = np.asarray(hedge_pos[id])
-        hedge_time[id] = np.asarray(hedge_time[id])
+        index = np.argsort(hedge_time[id]) # sort based on timestamps
+        hedge_pos[id] = np.asarray(hedge_pos[id])[index]
+        hedge_time[id] = np.asarray(hedge_time[id])[index]
+        hedge_rot[id] = np.asarray(hedge_rot[id])[index]
+        t_0.append(hedge_time[id][0])
 
-    return hedge_pos, hedge_time
+    # If the first entry of the time vector is zero, the timestamps started in another timevector. So shift the every vector by this amount
+    time_shift = abs(min(t_0))
+    for id in hedge_pos.keys():
+        hedge_time[id] = hedge_time[id] + time_shift
+
+    return hedge_pos, hedge_time, hedge_rot
 
 
 def get_hedge_pos(bag_file_path, hedge='hedge_1'):
