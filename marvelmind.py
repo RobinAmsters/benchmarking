@@ -33,7 +33,7 @@ def rotate_point(origin, point, angle):
     return qx, qy
 
 
-def transform_to_marvelmind(all_pos, beacon_origin):
+def transform_to_global(all_pos, beacon_origin):
     all_pos_rot_trans = np.empty([len(all_pos),2])
     for i in range(len(all_pos)):
         pos = all_pos[i]
