@@ -10,6 +10,7 @@ Created on Tue Jul 31 11:49:26 2018
 
 """
 import math
+import copy
 import bag_data as bag
 import numpy as np
 
@@ -78,6 +79,14 @@ def align_time_index(time_1, time_2, slack=0.01):
     index_1 = []
     index_2 = []
 
+    # should match shortest list to longest list, otherwhise the approach below generates duplicate matches
+    swap = False
+    if len(time_2) > len(time_1):
+        time_1_copy = copy.deepcopy(time_1)
+        time_1 = time_2
+        time_2 = time_1_copy
+        swap = True
+
     # Loop over both time series and find best match for each timestamp
     for i in range(len(time_1)):
 
@@ -97,7 +106,11 @@ def align_time_index(time_1, time_2, slack=0.01):
                 index_2.append(j)
                 dt_min = dt
 
-    return index_1, index_2
+    # In case we swapped the time vectors, the indices are reversed as well
+    if swap:
+        return index_2, index_1
+    else:
+        return index_1, index_2
 
 def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_positions, slack=0.1):
     """!
@@ -164,7 +177,7 @@ def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hed
 
         hedge_time[id].append((hedge_msg.timestamp_ms - t_start) / 1000.0)
         hedge_pos[id].append([hedge_msg.x_m, hedge_msg.y_m, hedge_msg.z_m])
-        hedge_rot[id].append(hedge_msg.angle)
+        hedge_rot[id].append(np.radians(hedge_msg.angle))
 
     # Convert to numpy arrays for easier indexing
     t_0 = []
