@@ -12,7 +12,7 @@ General purpose file for obtaining data from rosbag files
 import rosbag
 import numpy as np
 from file_select_gui import get_file_path
-
+from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 # ==============================================================================
 def get_topic_data(bagFile, topic):
@@ -38,7 +38,7 @@ def get_joint_data(bagFile, joint_name, duration=True):
         Function that filters bag files to obtain data from a joint that is 
         published to the /tf topic.
         
-        Only x-, y- and z-coordinates are returned
+        Only x-, y- and theta-coordinates are returned
         
         if convert_to_sec is set to True (default), then the first timestamp 
         will be taken as zero seconds, and the following timesteps that are 
@@ -48,7 +48,7 @@ def get_joint_data(bagFile, joint_name, duration=True):
     # INITIALIZATION
     x = np.array([])
     y = np.array([])
-    z = np.array([])
+    theta = np.array([])
     all_t = np.array([])
     bag = rosbag.Bag(bagFile)  # Initialize rosbag object
     first = True  # True on first iteration to take first timestamp
@@ -58,6 +58,9 @@ def get_joint_data(bagFile, joint_name, duration=True):
 
         joint = msg.transforms[0].child_frame_id
         translation = msg.transforms[0].transform.translation
+        orientation = msg.transforms[0].transform.rotation
+        euler = euler_from_quaternion(
+            [orientation.x, orientation.y, orientation.z, orientation.w])
 
         if joint == joint_name:
 
@@ -75,13 +78,12 @@ def get_joint_data(bagFile, joint_name, duration=True):
                 all_t = np.append(all_t, t_sec)
 
             # Get x, y and z coordinates
-            pose = [translation.x, translation.y, translation.z]
 
-            x = np.append(x, pose[0])
-            y = np.append(y, pose[1])
-            z = np.append(z, pose[2])
+            x = np.append(x, translation.x)
+            y = np.append(y, translation.y)
+            theta = np.append(theta, euler[2])
 
-    pose = [x, y, z]
+    pose = [x, y, theta]
 
     return pose, all_t
 
