@@ -4,10 +4,6 @@ Created on Thu Jan 12 15:10:28 2017
 
 Small functions to select file or directory paths via a GUI
 
-Functions:
-    - getFilePath: Get path of a single file with a GUI
-    - getDirectoryPath: Get path of a directory with a GUI
-
 @author: Robin Amsters
 @email: robin.amsters@gmail.com
 """
