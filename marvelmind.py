@@ -5,16 +5,18 @@ Created on Tue Jul 31 11:49:26 2018
 
 @author: Robin Amsters
 @email: robin.amsters@kuleuven.be
-
-
+@brief: postprocess data from marvelmind ultrasound positioning system
+@details: functions assume data was recorded in a rosbag file
 
 """
 import math
 import copy
+import sympy
 import bag_data as bag
 import numpy as np
-
 from file_select_gui import get_file_path
+from scipy.optimize import root
+
 
 
 def rotate_point(origin, point, angle):
@@ -112,7 +114,7 @@ def align_time_index(time_1, time_2, slack=0.01):
     else:
         return index_1, index_2
 
-def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_positions, slack=0.1):
+def get_robot_pose_old(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_positions, slack=0.1):
     """!
     @brief returns the ground truth robot pose based on marvelmind hedgehog locations
 
@@ -148,6 +150,128 @@ def get_robot_pose(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_p
         robot_time = hedge_1_time[hedge_1_index]
 
     return robot_pose, robot_time
+
+def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18, d_hedge_lower=0.23, tol=1.0):
+    """!
+    @brief calculate robot pose based marvelmind and optionally odometry measurements
+    @details calculation is performed either by using the coordinates of two hedgehogs (method='hedge'), or by using the
+    coordinates of 1 hedgehog and odometry angles (method='odom'). All coordinates should first be expressed in a
+    common world coordinate frame
+    @param pos: coordinates of hedgehogs as a dictionary, in the world coordinate frame.
+    @param: time stamps corresponding to the coordinates in pos. Should also be a dictionary with the same keys as pos
+    @param params: YAML parameters (should at least contain hedgehog positions)
+    @param method: calculation method for robot pose. Accepted values are 'odom' and 'hedge'
+    @param d_hedge_upper: upper limit on distance between hedgehogs. Above this limit, robot pose wil be returned as NAN
+    @param d_hedge_lower: lower limit on distance between hedgehogs. Above this limit, robot pose wil be returned as NAN
+    @param tol: tolerance for numerical solvers
+    @return robot_pose: pose of mobile robot [[x, y, theta]]
+    """
+    # Get hedgehog ids from YAML parameters
+    hedge_id = params['hedge_positions'].keys()
+    id_0 = hedge_id[0]
+    id_1 = hedge_id[1]
+
+    # Get position of first hedgehog relative to robot center
+    x_hedge_0_rob = params['hedge_positions'][id_0][0]
+    y_hedge_0_rob = params['hedge_positions'][id_0][1]
+
+    # Calculate robot pose from 1 hedgehog coordinate and odometry angle
+    if method=='odom':
+
+        # Get odometry and hedgehog coordinates
+        odom_pos = pos['odom']
+        odom_time = time['odom']
+        hedge_pos = pos['hedge'][id_0]
+        hedge_time = time['hedge'][id_0]
+
+        # Initialize collection
+        robot_pose = np.empty([len(hedge_pos), 3])
+
+        # only take timestamps that approximately match
+        hedge_index, odom_index = align_time_index(hedge_time, odom_time, slack=0.1)
+        hedge_time = hedge_time[hedge_index]
+        hedge_pos = hedge_pos[hedge_index]
+        for i in range(len(odom_pos)):
+            odom_pos[i] = odom_pos[i][odom_index]
+
+        # Calculate robot center pose, assume odometry angle is equal to robot angle in the world frame
+        for i in range(len(odom_pos[2])):
+            theta = odom_pos[2][i]
+            # TODO translate the hedge angle to world frame first
+            robot_pose[i][0] = hedge_pos[i][0] - x_hedge_0_rob * np.cos(theta) + y_hedge_0_rob * np.sin(theta)
+            robot_pose[i][1] = hedge_pos[i][1] - x_hedge_0_rob * np.sin(theta) - y_hedge_0_rob * np.cos(theta)
+            robot_pose[i][2] = theta
+
+    # Calculate robot_pose from coordinates of 2 hedghehogs
+    elif method=='hedge_pos':
+
+        hedge_pos = pos['hedge']
+        hedge_time = time['hedge']
+
+        # Positions of second hedgehog relative to robot center
+        x_hedge_1_rob = params['hedge_positions'][id_1][0]
+        y_hedge_1_rob = params['hedge_positions'][id_1][1]
+
+        # symbolic representation for sympy solver
+        x_rob, y_rob, theta = sympy.symbols('x_rob, y_rob, theta')
+
+        # Synchronize timestamps of both hedgehogs
+        hedge_0_index, hedge_1_index = align_time_index(hedge_time[id_0], hedge_time[id_1], slack=0.1) # only take timestamps that approximately match
+        hedge_index = {id_0:hedge_0_index, id_1:hedge_1_index}
+        for id in hedge_id:
+            hedge_pos[id] = hedge_pos[id][hedge_index[id]]
+            hedge_time[id] = hedge_time[id][hedge_index[id]]
+
+        # Initialize collections
+        robot_pose = np.empty([len(hedge_pos[id_0]), 3])
+        pose_prev = np.zeros(3)
+        d_hedge = []
+
+
+
+        # Use non linear solver to calculate robot pose from hedgehog coordinates and their position relative to the
+        # robot center
+        for i in range(len(hedge_pos[id_0])):
+
+            x_hedge_0 = hedge_pos[id_0][i][0]
+            y_hedge_0 = hedge_pos[id_0][i][1]
+            x_hedge_1 = hedge_pos[id_1][i][0]
+            y_hedge_1 = hedge_pos[id_1][i][1]
+
+            data = (x_hedge_0, y_hedge_0, x_hedge_1, y_hedge_1, x_hedge_0_rob, y_hedge_0_rob, x_hedge_1_rob, y_hedge_1_rob)
+            d_hedge_i = np.sqrt((x_hedge_0 - x_hedge_1) ** 2 + (y_hedge_0 - y_hedge_1) ** 2) # Distance between hedgehogs, should be a constant value during an experiment
+
+            # Only attempt a solution if the distance between hedgehogs is within set limits
+            if (d_hedge_i >= d_hedge_upper and d_hedge_i <= d_hedge_lower):
+                sol = root(hedge_to_robot, pose_prev, args=data, method='lm')
+                sol = sol.x
+                d_hedge.append(d_hedge_i)
+                pose_prev[0:3] = sol[0:3]
+                robot_pose[i] = sol[0:3]
+            else:
+                d_hedge.append(np.nan)
+                robot_pose[i] = [np.nan, np.nan, np.nan]
+    else:
+        raise Exception("Invalid method, accepted values are 'hedge_pos', 'odom'")
+
+    return robot_pose
+
+def hedge_to_robot(vars, *data):
+    """!
+    @brief equations that define the relation between global hedgehog coordinates, and global robot pose.
+    @param vars: symbolic variables of the robot pose (x_rob_global, y_rob_global, theta )
+    @return data: coordinates of the hedgehogs in global and robot coordinate frames
+    (x_hedge_1_global, y_hedge_1_global, x_hedge_2_global,y_hedge_2_global, x_hedge_1_rob, y_hedge_1_rob, x_hedge_2_rob, y_hedge_2_rob)
+    """
+    x_rob_global, y_rob_global, theta = vars
+    x_hedge_1_global, y_hedge_1_global, x_hedge_2_global,y_hedge_2_global, x_hedge_1_rob, y_hedge_1_rob, x_hedge_2_rob, y_hedge_2_rob = data
+
+    f1 = -x_hedge_1_global + x_rob_global + x_hedge_1_rob*sympy.cos(theta) - y_hedge_1_rob*sympy.sin(theta)
+    f2 = -y_hedge_1_global + y_rob_global + x_hedge_1_rob*sympy.sin(theta) + y_hedge_1_rob*sympy.cos(theta)
+    f3 = -x_hedge_2_global + x_rob_global + x_hedge_2_rob*sympy.cos(theta) - y_hedge_2_rob*sympy.sin(theta)
+    f4 = -y_hedge_2_global + y_rob_global + x_hedge_2_rob*sympy.sin(theta) + y_hedge_2_rob*sympy.cos(theta)
+
+    return (f1, f2, f3, f4)
 
 def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hedge_1','hedge_2']):
 
