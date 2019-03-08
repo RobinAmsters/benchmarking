@@ -202,7 +202,7 @@ def get_robot_pose_old(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hed
 
     return robot_pose, robot_time
 
-def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18, d_hedge_lower=0.23, tol=1.0):
+def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18, d_hedge_lower=0.23, tol=1.0, slack=0.1):
     """!
     @brief calculate robot pose based marvelmind and optionally odometry measurements
     @details calculation is performed either by using the coordinates of two hedgehogs (method='hedge'), or by using the
@@ -215,7 +215,9 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
     @param d_hedge_upper: upper limit on distance between hedgehogs. Above this limit, robot pose wil be returned as NAN
     @param d_hedge_lower: lower limit on distance between hedgehogs. Above this limit, robot pose wil be returned as NAN
     @param tol: tolerance for numerical solvers
+    @param slack: tolerance on matching timestamps [s]
     @return robot_pose: pose of mobile robot [[x, y, theta]]
+    @return robot_time: timestamps corresponding to the robot coordinates
     """
     # Get hedgehog ids from YAML parameters
     hedge_id = params['hedge_positions'].keys()
@@ -235,8 +237,8 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
         hedge_time = time['hedge'][id_0]
 
         # only take timestamps that approximately match
-        hedge_index, odom_index = align_time_index(hedge_time, odom_time, slack=0.1)
-        hedge_time = hedge_time[hedge_index]
+        hedge_index, odom_index = align_time_index(hedge_time, odom_time, slack=slack)
+        robot_time = hedge_time[hedge_index]
         hedge_pos = hedge_pos[hedge_index]
         for i in range(len(odom_pos)):
             odom_pos[i] = odom_pos[i][odom_index]
@@ -247,7 +249,6 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
         # Calculate robot center pose, assume odometry angle is equal to robot angle in the world frame
         for i in range(len(odom_pos[2])):
             theta = odom_pos[2][i]
-            # TODO translate the hedge angle to world frame first
             robot_pose[i][0] = hedge_pos[i][0] - x_hedge_0_rob * np.cos(theta) + y_hedge_0_rob * np.sin(theta)
             robot_pose[i][1] = hedge_pos[i][1] - x_hedge_0_rob * np.sin(theta) - y_hedge_0_rob * np.cos(theta)
             robot_pose[i][2] = theta
@@ -268,11 +269,12 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
         x_rob, y_rob, theta = sympy.symbols('x_rob, y_rob, theta')
 
         # Synchronize timestamps of both hedgehogs
-        hedge_0_index, hedge_1_index = align_time_index(hedge_time[id_0], hedge_time[id_1], slack=0.1) # only take timestamps that approximately match
+        hedge_0_index, hedge_1_index = align_time_index(hedge_time[id_0], hedge_time[id_1], slack=slack) # only take timestamps that approximately match
         hedge_index = {id_0:hedge_0_index, id_1:hedge_1_index}
         for id in hedge_id:
             hedge_pos[id] = hedge_pos[id][hedge_index[id]]
             hedge_time[id] = hedge_time[id][hedge_index[id]]
+        robot_time = hedge_time[id_0]
 
         # Initialize collections
         robot_pose = np.empty([len(hedge_pos[id_0]), 3])
@@ -304,7 +306,7 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
     else:
         raise Exception("Invalid method, accepted values are 'hedge_pos', 'odom'")
 
-    return robot_pose
+    return robot_pose, robot_time
 
 def hedge_to_robot(vars, *data):
     """!
