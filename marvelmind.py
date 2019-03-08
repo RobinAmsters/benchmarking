@@ -17,6 +17,24 @@ import numpy as np
 from file_select_gui import get_file_path
 from scipy.optimize import root
 
+def mirror_point(point, mirror_axis='x', reflection_axis=0.0):
+    """!
+    @brief: mirror a point around a certain vertical or horizontal axis
+    @param point: coordinates of the point to be mirrored [x, y]
+    @param mirror_axis: denotes wether the mirror image should be made around the 'x' or 'y' axis
+    @param reflection_axis: can be used to specify an axis different from zero
+    @return point_mirrored: the resulting mirrored coordinate [x, y]
+    """
+
+    if mirror_axis=='x':
+        point_mirrored = np.array([point[0], 2*reflection_axis - point[1]])
+    elif mirror_axis=='y':
+        point_mirrored = np.array([2*reflection_axis - point[0], point[1]])
+    else:
+        raise Exception("Invalid value for reflection_axis, accepted values are 'x' and 'y'")
+
+    return point_mirrored
+
 
 
 def rotate_point(origin, point, angle):
@@ -36,15 +54,47 @@ def rotate_point(origin, point, angle):
     return qx, qy
 
 
-def transform_to_global(all_pos, beacon_origin):
-    all_pos_rot_trans = np.empty([len(all_pos),2])
+def transform_to_global(all_pos, tranformation_params={'origin':[0.0, 0.0], 'angle':0.0}):
+    """!
+    @brief Tranform marvelmind coordinates to a global coordinate frame
+    @param all_pos: collection of coordinates [[x_1, y_1], ..., [x_n, y_n]]
+    @param tranformation_params: dictionary with parameters that define the transformation. In general, 2 operations
+    are possible; a rotation + translation (general coordinate transformation) or a mirroring around an axis. In case
+    of a general coordinate transformation, the dictionary should contain the keys 'origin' (with an array entry
+    containing [x, y] coordinates) and 'angle' (containing an angle in radians). The points will then first be rotated
+    by the 'angle' value around the 'origin'. Next, all points will be translated such that 'origin' becomes the
+    origin of the coordinate frame. In case a mirroring operating is desired, the dictionary should contain the key
+    'mirror', which should be a Boolean set to true. The 'mirror_axis' and 'reflection_axis' should also be specified,
+    which are used by the 'mirror_point' function.
+    @return all_pos_rot_trans: tranformed coordinates [[x_1, y_1], ..., [x_n, y_n]]
+    """
+
+    try:
+        mirror = tranformation_params['mirror']
+        mirror_axis = tranformation_params['mirror_axis']
+        reflection_axis = tranformation_params['reflection_axis']
+        origin = tranformation_params['origin']
+    except KeyError:
+        origin = tranformation_params['origin']
+        angle = tranformation_params['angle']
+        mirror = False
+
+    all_pos_transformed = np.empty([len(all_pos),2])
+
     for i in range(len(all_pos)):
         pos = all_pos[i]
-        pos_rot = rotate_point([0.0, 0.0], [pos[0], pos[1]], np.radians(-45))
-        pos_rot_trans = [pos_rot[0] - beacon_origin[0], pos_rot[1] - beacon_origin[1]]
-        all_pos_rot_trans[i] = pos_rot_trans
 
-    return all_pos_rot_trans
+        if mirror:
+            pos_rot = mirror_point(pos, mirror_axis=mirror_axis, reflection_axis=reflection_axis)
+
+        else:
+            pos_rot = rotate_point([0.0, 0.0], [pos[0], pos[1]], np.radians(-angle))
+
+        pos_transformed = [pos_rot[0] - origin[0], pos_rot[1] - origin[1]]
+
+        all_pos_transformed[i] = pos_transformed
+
+    return all_pos_transformed
 
 def get_vector_angle(p1, p2):
     """!
@@ -169,7 +219,6 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
     # Get hedgehog ids from YAML parameters
     hedge_id = params['hedge_positions'].keys()
     id_0 = hedge_id[0]
-    id_1 = hedge_id[1]
 
     # Get position of first hedgehog relative to robot center
     x_hedge_0_rob = params['hedge_positions'][id_0][0]
@@ -184,15 +233,15 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
         hedge_pos = pos['hedge'][id_0]
         hedge_time = time['hedge'][id_0]
 
-        # Initialize collection
-        robot_pose = np.empty([len(hedge_pos), 3])
-
         # only take timestamps that approximately match
         hedge_index, odom_index = align_time_index(hedge_time, odom_time, slack=0.1)
         hedge_time = hedge_time[hedge_index]
         hedge_pos = hedge_pos[hedge_index]
         for i in range(len(odom_pos)):
             odom_pos[i] = odom_pos[i][odom_index]
+
+        # Initialize collection
+        robot_pose = np.empty([len(hedge_pos), 3])
 
         # Calculate robot center pose, assume odometry angle is equal to robot angle in the world frame
         for i in range(len(odom_pos[2])):
@@ -204,6 +253,8 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
 
     # Calculate robot_pose from coordinates of 2 hedghehogs
     elif method=='hedge_pos':
+
+        id_1 = hedge_id[1]
 
         hedge_pos = pos['hedge']
         hedge_time = time['hedge']
@@ -226,8 +277,6 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
         robot_pose = np.empty([len(hedge_pos[id_0]), 3])
         pose_prev = np.zeros(3)
         d_hedge = []
-
-
 
         # Use non linear solver to calculate robot pose from hedgehog coordinates and their position relative to the
         # robot center
