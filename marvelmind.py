@@ -74,11 +74,11 @@ def transform_to_global(all_pos, tranformation_params={'origin':[0.0, 0.0], 'ang
         mirror = tranformation_params['mirror']
         mirror_axis = tranformation_params['mirror_axis']
         reflection_axis = tranformation_params['reflection_axis']
-        origin = tranformation_params['origin']
     except KeyError:
-        origin = tranformation_params['origin']
-        angle = tranformation_params['angle']
         mirror = False
+
+    origin = tranformation_params['origin']
+    angle = tranformation_params['angle']
 
     all_pos_transformed = np.empty([len(all_pos),2])
 
@@ -89,7 +89,7 @@ def transform_to_global(all_pos, tranformation_params={'origin':[0.0, 0.0], 'ang
             pos_rot = mirror_point(pos, mirror_axis=mirror_axis, reflection_axis=reflection_axis)
 
         else:
-            pos_rot = rotate_point([0.0, 0.0], [pos[0], pos[1]], np.radians(-angle))
+            pos_rot = rotate_point(origin, [pos[0], pos[1]], -angle)
 
         pos_transformed = [pos_rot[0] - origin[0], pos_rot[1] - origin[1]]
 
