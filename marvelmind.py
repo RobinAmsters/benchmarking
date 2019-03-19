@@ -76,9 +76,10 @@ def transform_to_global(all_pos, tranformation_params={'origin':[0.0, 0.0], 'ang
         reflection_axis = tranformation_params['reflection_axis']
     except KeyError:
         mirror = False
+        angle = tranformation_params['angle']
 
     origin = tranformation_params['origin']
-    angle = tranformation_params['angle']
+
 
     all_pos_transformed = np.empty([len(all_pos),2])
 
@@ -164,43 +165,6 @@ def align_time_index(time_1, time_2, slack=0.01):
         return index_2, index_1
     else:
         return index_1, index_2
-
-def get_robot_pose_old(hedge_1_pos, hedge_1_time, hedge_2_pos, hedge_2_time, hedge_positions, slack=0.1):
-    """!
-    @brief returns the ground truth robot pose based on marvelmind hedgehog locations
-
-    @param hedge_1_pos: Position of first tracked hedgehog [[x_n, y_n, z_n]]
-    @param hedge_1_time: Timestamps of first hedgehog position measurements [ms since start]
-    @param hedge_2_pos: Position of second tracked hedgehog [[x_n, y_n, z_n]]
-    @param hedge_2_time: Timestamps of second hedgehog position measurements [ms since start]
-    @return robot_pose: Robot pose [[x_n, y_n, theta_n]], for now taken as average of two hedgehog coordinates
-    """
-
-    # Align timestamps of hedgehog locations so that the robot center location and robot heading can be obtained from
-    # their know translation relative to the robot center
-    hedge_1_index, hedge_2_index = align_time_index(hedge_1_time, hedge_2_time, slack=slack)
-
-    robot_pose = np.empty([len(hedge_1_index), 3])  # robot pose: [x_center, y_center, theta]
-    robot_time = np.empty([len(hedge_1_index)])  # robot pose: [x_center, y_center, theta]
-
-    for i in range(len(hedge_1_index)):
-        hedge_1_i = hedge_1_index[i]
-        hedge_2_i = hedge_2_index[i]
-
-        # Get robot position from hedgehog coordinates, assume hedgehogs ar
-        theta = get_vector_angle(hedge_1_pos[hedge_1_index[i]], hedge_2_pos[hedge_2_index[i]])
-        # @todo identify hedge adress somehow
-        robot_pose[i, 0] = x_hedhe_g + x_hedhe_r*np.sin(theta) - y_hedhe_r*np.cos(theta)
-        robot_pose[i, 1] = y_hedhe_g - y_hedhe_r*np.sin(theta) - y_hedhe_r*np.cos(theta)
-
-        # Get angle between hedgehogs, to be used as ground truth for robot heading
-        robot_pose[i, 2] = theta
-
-        # Take timestamps of robot pose the same as aligned timestamps of first hedgehog, should not be too different
-        # from second hedgehog anyway depending on the slack
-        robot_time = hedge_1_time[hedge_1_index]
-
-    return robot_pose, robot_time
 
 def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18, d_hedge_lower=0.23, tol=1.0, slack=0.1):
     """!
@@ -325,7 +289,7 @@ def hedge_to_robot(vars, *data):
 
     return (f1, f2, f3, f4)
 
-def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hedge_1','hedge_2']):
+def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hedge_1','hedge_2'], duration=False):
 
     hedge_pos = {}
     hedge_rot = {}
@@ -337,37 +301,33 @@ def get_multi_hedge_pos(bag_file_path, hedge_address=[17, 59], hedge_names=['hed
 
     #   Get position data from all topics for all hedgehogs
     all_hedge_msgs = []
+    all_t = []
     for hedge in hedge_names:
         hedge_topic = "/" + hedge + "/hedge_pos_ang"
-        hedge_msgs = bag.get_topic_data(bag_file_path, hedge_topic)
+        hedge_msgs, t = bag.get_topic_data(bag_file_path, hedge_topic, return_t=True)
         all_hedge_msgs = np.append(all_hedge_msgs, hedge_msgs)
+        all_t = np.append(all_t, t)
+
+    t_0 = min(all_t)
 
     # Seperate data based on ids
     for i in range(len(all_hedge_msgs)):
         hedge_msg = all_hedge_msgs[i]
+        t_i = all_t[i]
         id = hedge_msg.address
-        # Convert timestamp to duration in seconds since start so that it can
-        # be compared to other data from the same rosbag
-        if i == 0:
-            t_start = hedge_msg.timestamp_ms
-
-        hedge_time[id].append((hedge_msg.timestamp_ms - t_start) / 1000.0)
         hedge_pos[id].append([hedge_msg.x_m, hedge_msg.y_m, hedge_msg.z_m])
         hedge_rot[id].append(np.radians(hedge_msg.angle))
+        if duration:
+            hedge_time[id].append(t_i - t_0)
+        else:
+            hedge_time[id].append(t_i)
 
     # Convert to numpy arrays for easier indexing
-    t_0 = []
     for id in hedge_pos.keys():
         index = np.argsort(hedge_time[id]) # sort based on timestamps
         hedge_pos[id] = np.asarray(hedge_pos[id])[index]
         hedge_time[id] = np.asarray(hedge_time[id])[index]
         hedge_rot[id] = np.asarray(hedge_rot[id])[index]
-        t_0.append(hedge_time[id][0])
-
-    # If the first entry of the time vector is zero, the timestamps started in another timevector. So shift the every vector by this amount
-    time_shift = abs(min(t_0))
-    for id in hedge_pos.keys():
-        hedge_time[id] = hedge_time[id] + time_shift
 
     return hedge_pos, hedge_time, hedge_rot
 

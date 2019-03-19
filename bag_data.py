@@ -15,20 +15,28 @@ from file_select_gui import get_file_path
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
 
 # ==============================================================================
-def get_topic_data(bagFile, topic):
+def get_topic_data(bagFile, topic, return_t=False):
     """
         Return all messages from a specific topic
     """
 
     all_msg = []
+    if return_t:
+        all_t = []
+
 
     # Initialize rosbag object
     bag = rosbag.Bag(bagFile)
 
     for topic, msg, t in bag.read_messages(topics=[topic]):
         all_msg = np.append(all_msg, msg)
+        if return_t:
+            all_t = np.append(all_t, t.to_sec())
 
-    return all_msg
+    if return_t:
+        return all_msg, all_t
+    else:
+        return all_msg
 
 
 # ==============================================================================
