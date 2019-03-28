@@ -183,6 +183,10 @@ def get_robot_pose(pos, time, origin, params, method='odom', d_hedge_upper=0.18,
     @return robot_pose: pose of mobile robot [[x, y, theta]]
     @return robot_time: timestamps corresponding to the robot coordinates
     """
+    # Deepcopy because python stupidly edits dictionaries
+    time = copy.deepcopy(time)
+    pos = copy.deepcopy(pos)
+
     # Get hedgehog ids from YAML parameters
     hedge_id = params['hedge_positions'].keys()
     id_0 = hedge_id[0]
